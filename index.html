@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>PODCAST AI - Kinh Doanh & Nhân Viên Mới</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+  :root {
+    --primary: #4CAF50;
+    --secondary: #2196F3;
+    --danger: #F44336;
+    --warning: #FFC107;
+    --light-bg: #f5f7fa;
+    --card-bg: #ffffff;
+    --text-dark: #2d3748;
+    --text-light: #718096;
+  }
+  
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--light-bg);
+    padding: 20px;
+    color: var(--text-dark);
+    line-height: 1.6;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    padding: 30px;
+    overflow: auto;
+  }
+  
+  h1 {
+    color: var(--primary);
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2.2rem;
+    position: relative;
+    padding-bottom: 15px;
+    font-weight: 700;
+  }
+  
+  h1::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 4px;
+    background: linear-gradient(to right, var(--primary), var(--secondary));
+    border-radius: 2px;
+  }
+  
+  .input-group {
+    margin-bottom: 25px;
+    background: #f8fafc;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #edf2f7;
+  }
+  
+  label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-dark);
+    font-size: 0.95rem;
+  }
+  
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+    transition: all 0.3s;
+    background: white;
+  }
+  
+  input[type="text"]:focus {
+    border-color: var(--secondary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+  }
+  
+  button {
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    margin-right: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  
+  button:active {
+    transform: translateY(0);
+  }
+  
+  button.delete {
+    background: var(--danger);
+  }
+  
+  button.edit {
+    background: var(--warning);
+    color: var(--text-dark);
+  }
+  
+  button.save {
+    background: var(--primary);
+    display: none; /* Ẩn nút Lưu ban đầu */
+  }
+  
+  .audio-list {
+    margin-top: 30px;
+    max-height: 60vh;
+    overflow-y: auto;
+    border-radius: 12px;
+    background: #f8fafc;
+    padding: 15px;
+    border: 1px solid #e2e8f0;
+  }
+  
+  .audio-item {
+    background: white;
+    border-radius: 12px;
+    margin: 15px 0;
+    padding: 0;
+    cursor: grab;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    border: 1px solid #edf2f7;
+  }
+  
+  .audio-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  }
+  
+  .audio-header {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  .audio-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 8px;
+    object-fit: cover;
+    margin-right: 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    flex-shrink: 0;
+  }
+  
+  .audio-name {
+    font-weight: 700;
+    font-size: 1.3rem;
+    flex-grow: 1;
+    color: var(--text-dark);
+    margin-right: 15px;
+  }
+  
+  .audio-name-input {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-family: inherit;
+    display: none; /* Ẩn input ban đầu */
+  }
+  
+  .audio-content {
+    padding: 20px;
+  }
+  
+  .audio-player {
+    width: 100%;
+    border-radius: 8px;
+    margin: 15px 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+  
+  .audio-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 15px;
+    border-top: 1px solid #eee;
+    gap: 10px;
+  }
+  
+  /* Waveform animation */
+  .wave-container {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    height: 60px;
+    margin: 15px 0;
+  }
+  
+  .wave {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 40px;
+  }
+  
+  .wave-bar {
+    background: var(--secondary);
+    width: 6px;
+    height: 10px;
+    border-radius: 3px;
+    animation: wave 1.2s ease-in-out infinite;
+  }
+  
+  @keyframes wave {
+    0%, 100% {
+      height: 10px;
+    }
+    50% {
+      height: 40px;
+    }
+  }
+  
+  .wave-bar:nth-child(1) { animation-delay: 0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.5s; }
+  .wave-bar:nth-child(7) { animation-delay: 0.6s; }
+  
+  /* Sorting controls */
+  .sort-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 15px;
+  }
+  
+  .sort-btn {
+    background: var(--light-bg);
+    color: var(--text-dark);
+    border: 1px solid #e2e8f0;
+    padding: 8px 15px;
+    margin-left: 10px;
+    font-size: 0.9rem;
+  }
+  
+  .sort-btn.active {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .container {
+      padding: 20px;
+    }
+    
+    h1 {
+      font-size: 1.8rem;
+    }
+    
+    .audio-header {
+      flex-direction: column;
+      text-align: center;
+      padding: 15px;
+    }
+    
+    .audio-image {
+      width: 100%;
+      height: auto;
+      max-height: 200px;
+      margin-right: 0;
+      margin-bottom: 15px;
+    }
+    
+    .audio-list {
+      max-height: 65vh;
+    }
+    
+    .audio-actions {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    button {
+      width: 100%;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+    
+    .sort-controls {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .sort-btn {
+      margin: 5px;
+    }
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-light);
+  }
+  
+  .empty-state i {
+    font-size: 3.5rem;
+    color: #e2e8f0;
+    margin-bottom: 20px;
+  }
+  
+  .empty-state p {
+    font-size: 1.1rem;
+    margin-top: 10px;
+  }
+  
+  .edit-mode .audio-name {
+    display: none;
+  }
+  
+  .edit-mode .audio-name-input {
+    display: block;
+  }
+  
+  .edit-mode .edit {
+    display: none;
+  }
+  
+  .edit-mode .save {
+    display: inline-flex;
+  }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="fas fa-podcast"></i> TUYỂN TẬP CÁC BÀI HÁT - MR TRIẾT ( LỜI ) - AI PHỐI ÂM </h1>
+    
+    <div class="input-group">
+      <label for="audioName"><i class="fas fa-heading"></i> Tên podcast:</label>
+      <input type="text" id="audioName" placeholder="Nhập tên podcast..." />
+      
+      <label for="audioLink"><i class="fas fa-link"></i> Link Vocaroo:</label>
+      <input type="text" id="audioLink" placeholder="https://vocaroo.com/embed/xxxxxx" />
+      
+      <label for="audioImage"><i class="fas fa-image"></i> Link ảnh minh họa (tùy chọn):</label>
+      <input type="text" id="audioImage" placeholder="https://example.com/image.jpg" />
+      <small style="color: var(--text-light);">Để trống sẽ dùng ảnh mặc định</small>
+      
+      <button onclick="uploadAudio()"><i class="fas fa-upload"></i> Upload Podcast</button>
+    </div>
+    
+    <div class="sort-controls">
+      <button class="sort-btn" onclick="sortPodcasts('default')"><i class="fas fa-sort"></i> Mặc định</button>
+      <button class="sort-btn" onclick="sortPodcasts('title-asc')"><i class="fas fa-sort-alpha-down"></i> A-Z</button>
+      <button class="sort-btn" onclick="sortPodcasts('title-desc')"><i class="fas fa-sort-alpha-up"></i> Z-A</button>
+    </div>
+    
+    <div class="audio-list" id="audioList">
+      <div class="empty-state">
+        <i class="fas fa-headphones"></i>
+        <p>Chưa có podcast nào. Hãy thêm podcast đầu tiên!</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+   const firebaseConfig = {
+  apiKey: "AIzaSyBuXjYpTuKpNyZY6ZIfUSA-m4NWBwPWcU0",
+  authDomain: "baica-dae2b.firebaseapp.com",
+  projectId: "baica-dae2b",
+  storageBucket: "baica-dae2b.firebasestorage.app",
+  messagingSenderId: "61139094665",
+  appId: "1:61139094665:web:13ebec976cec24e53f8a58",
+  measurementId: "G-VN2S2VVSZB"
+};
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Default image if none provided
+    const DEFAULT_IMAGE = "https://cdn.imgpile.com/f/2J2V5Fw_xl.jpg";
+    let currentSortMethod = 'default';
+    let allPodcasts = [];
+
+    // Thêm audio mới
+    function uploadAudio() {
+      const name = document.getElementById("audioName").value.trim();
+      const link = document.getElementById("audioLink").value.trim();
+      let image = document.getElementById("audioImage").value.trim();
+      
+      if (!name || !link) {
+        alert("Vui lòng nhập đầy đủ tên và link podcast!");
+        return;
+      }
+      
+      if (!/^https:\/\/vocaroo\.com\/embed\/[\w\d]+$/.test(link)) {
+        alert("Link podcast phải có dạng: https://vocaroo.com/embed/xxxxxx");
+        return;
+      }
+      
+      // Use default image if none provided
+      if (!image) image = DEFAULT_IMAGE;
+      
+      const newAudioRef = db.ref('audios').push();
+      newAudioRef.set({ name, link, image });
+      
+      // Clear inputs
+      document.getElementById("audioName").value = "";
+      document.getElementById("audioLink").value = "";
+      document.getElementById("audioImage").value = "";
+
+      // Thêm key mới vào audioOrder (đưa lên đầu)
+      db.ref('audioOrder').once('value', snap => {
+        let order = snap.val() || [];
+        order.unshift(newAudioRef.key);
+        db.ref('audioOrder').set(order);
+      });
+    }
+
+    // Xóa audio có password
+    function deleteAudio(key) {
+      const pass = prompt("Nhập password để xóa:");
+      if (pass === null) return;
+      if (pass === "minhtriet1973") {
+        if (!confirm("Bạn chắc chắn muốn xóa podcast này?")) return;
+        db.ref('audios/' + key).remove();
+        // Xóa khỏi audioOrder luôn
+        db.ref('audioOrder').once('value', snap => {
+          let order = snap.val() || [];
+          order = order.filter(k => k !== key);
+          db.ref('audioOrder').set(order);
+        });
+      } else {
+        alert("Sai password!");
+      }
+    }
+
+    // Chỉnh sửa tiêu đề
+    function editAudio(key) {
+      const item = document.querySelector(`.audio-item[data-key="${key}"]`);
+      item.classList.add('edit-mode');
+      
+      // Đặt giá trị hiện tại vào input
+      const currentName = item.querySelector('.audio-name').textContent;
+      const nameInput = item.querySelector('.audio-name-input');
+      nameInput.value = currentName;
+      nameInput.focus();
+    }
+
+    // Lưu tiêu đề sau khi chỉnh sửa
+    function saveAudio(key) {
+      const item = document.querySelector(`.audio-item[data-key="${key}"]`);
+      const newName = item.querySelector('.audio-name-input').value.trim();
+      
+      if (!newName) {
+        alert("Tên podcast không được để trống!");
+        return;
+      }
+      
+      // Cập nhật tên mới lên Firebase
+      db.ref('audios/' + key).update({ name: newName }, (error) => {
+        if (error) {
+          alert("Có lỗi khi lưu tiêu đề: " + error.message);
+        } else {
+          // Cập nhật tên hiển thị ngay lập tức
+          item.querySelector('.audio-name').textContent = newName;
+          item.classList.remove('edit-mode');
+          // Cập nhật trong allPodcasts
+          const podcast = allPodcasts.find(p => p.key === key);
+          if (podcast) podcast.name = newName;
+        }
+      });
+    }
+
+    // Kích hoạt drag & drop
+    function enableSorting() {
+      const el = document.getElementById("sortable-list");
+      if (!el) return;
+      new Sortable(el, {
+        animation: 150,
+        handle: '.audio-header',
+        onEnd: function () {
+          const items = Array.from(el.children);
+          const order = items.map(item => item.getAttribute("data-key"));
+          db.ref("audioOrder").set(order);
+        }
+      });
+    }
+
+    // Tạo hiệu ứng sóng âm
+    function createWaveform() {
+      return `
+        <div class="wave-container">
+          <div class="wave">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Sắp xếp podcast theo phương pháp được chọn
+    function sortPodcasts(method) {
+      currentSortMethod = method;
+      updateSortButtons();
+      
+      if (method === 'default') {
+        // Hiển thị lại danh sách theo thứ tự mặc định
+        showAudioList();
+        return;
+      }
+      
+      // Sắp xếp cục bộ theo tiêu đề
+      let sortedPodcasts = [...allPodcasts];
+      
+      if (method === 'title-asc') {
+        sortedPodcasts.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (method === 'title-desc') {
+        sortedPodcasts.sort((a, b) => b.name.localeCompare(a.name));
+      }
+      
+      // Render danh sách đã sắp xếp
+      renderPodcastList(sortedPodcasts);
+    }
+
+    // Cập nhật trạng thái nút sắp xếp
+    function updateSortButtons() {
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (
+          (currentSortMethod === 'default' && btn.textContent.includes('Mặc định')) ||
+          (currentSortMethod === 'title-asc' && btn.textContent.includes('A-Z')) ||
+          (currentSortMethod === 'title-desc' && btn.textContent.includes('Z-A'))
+        ) {
+          btn.classList.add('active');
+        }
+      });
+    }
+
+    // Render danh sách podcast
+    function renderPodcastList(podcasts) {
+      const listDiv = document.getElementById("audioList");
+      listDiv.innerHTML = "";
+      
+      if (podcasts.length === 0) {
+        listDiv.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-headphones"></i>
+            <p>Chưa có podcast nào. Hãy thêm podcast đầu tiên!</p>
+          </div>
+        `;
+        return;
+      }
+
+      const ul = document.createElement("div");
+      ul.id = "sortable-list";
+      
+      podcasts.forEach(podcast => {
+        const item = document.createElement("div");
+        item.className = "audio-item";
+        item.setAttribute("data-key", podcast.key);
+        
+        item.innerHTML = `
+          <div class="audio-header">
+            <img src="${podcast.image || DEFAULT_IMAGE}" alt="${podcast.name}" class="audio-image">
+            <div class="audio-name">${podcast.name}</div>
+            <input type="text" class="audio-name-input" placeholder="Nhập tên mới...">
+          </div>
+          <div class="audio-content">
+            ${createWaveform()}
+            <iframe class="audio-player" width="100%" height="60" src="${podcast.link}" frameborder="0" allow="autoplay"></iframe>
+          </div>
+          <div class="audio-actions">
+            <button class="edit" onclick="editAudio('${podcast.key}')"><i class="fas fa-edit"></i> Chỉnh sửa</button>
+            <button class="save" onclick="saveAudio('${podcast.key}')"><i class="fas fa-save"></i> Lưu</button>
+            <button class="delete" onclick="deleteAudio('${podcast.key}')"><i class="fas fa-trash"></i> Xóa</button>
+          </div>
+        `;
+        
+        ul.appendChild(item);
+      });
+      
+      listDiv.appendChild(ul);
+      
+      // Kích hoạt kéo thả nếu là sắp xếp mặc định
+      if (currentSortMethod === 'default') {
+        enableSorting();
+      }
+      
+      setupAudioPlayers();
+    }
+
+    // Hiển thị danh sách audio có thứ tự kéo thả
+    function showAudioList() {
+      db.ref('audios').on('value', (snapshot) => {
+        const listDiv = document.getElementById("audioList");
+        listDiv.innerHTML = "";
+        const data = snapshot.val();
+        
+        if (!data) {
+          listDiv.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-headphones"></i>
+              <p>Chưa có podcast nào. Hãy thêm podcast đầu tiên!</p>
+            </div>
+          `;
+          return;
+        }
+
+        db.ref('audioOrder').once('value', orderSnap => {
+          const order = orderSnap.val();
+          let entries = Object.entries(data);
+          
+          if (order && Array.isArray(order)) {
+            // Sắp xếp entries theo order
+            entries = order.map(key => [key, data[key]]).filter(item => item[1]);
+            // Thêm audio mới chưa có trong order
+            entries = entries.concat(Object.entries(data).filter(([k]) => !order.includes(k)));
+          }
+          
+          // Lưu tất cả podcast vào biến toàn cục
+          allPodcasts = entries.map(([key, audio]) => ({
+            key,
+            name: audio.name,
+            link: audio.link,
+            image: audio.image
+          }));
+          
+          // Render danh sách
+          renderPodcastList(allPodcasts);
+        });
+      });
+    }
+
+    // Thiết lập player audio và sóng âm
+    function setupAudioPlayers() {
+      const iframes = document.querySelectorAll('iframe.audio-player');
+      
+      iframes.forEach(iframe => {
+        // Thêm sự kiện load cho iframe
+        iframe.addEventListener('load', function() {
+          const wave = iframe.closest('.audio-content').querySelector('.wave-container');
+          const audioWindow = iframe.contentWindow;
+          
+          // Kiểm tra trạng thái phát mỗi 100ms
+          const checkPlaying = setInterval(() => {
+            try {
+              // Kiểm tra xem audio có đang phát không
+              const audio = audioWindow.document.querySelector('audio');
+              if (audio && !audio.paused) {
+                wave.style.display = 'flex';
+              } else {
+                wave.style.display = 'none';
+              }
+            } catch (e) {
+              // Nếu có lỗi (do cross-origin), dừng kiểm tra
+              clearInterval(checkPlaying);
+            }
+          }, 100);
+          
+          // Dọn dẹp khi iframe bị xóa
+          iframe.addEventListener('unload', () => clearInterval(checkPlaying));
+        });
+      });
+    }
+
+    // Tải danh sách audio khi trang load
+    showAudioList();
+    updateSortButtons();
+  </script>
+</body>
+</html>
