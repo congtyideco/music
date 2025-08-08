@@ -130,7 +130,7 @@
   
   button.save {
     background: var(--primary);
-    display: none; /* Ẩn nút Lưu ban đầu */
+    display: none;
   }
   
   .audio-list {
@@ -194,7 +194,7 @@
     font-size: 1.3rem;
     font-weight: 700;
     font-family: inherit;
-    display: none; /* Ẩn input ban đầu */
+    display: none;
   }
   
   .audio-content {
@@ -216,7 +216,6 @@
     gap: 10px;
   }
   
-  /* Waveform animation */
   .wave-container {
     display: none;
     align-items: center;
@@ -258,7 +257,6 @@
   .wave-bar:nth-child(6) { animation-delay: 0.5s; }
   .wave-bar:nth-child(7) { animation-delay: 0.6s; }
   
-  /* Sorting controls */
   .sort-controls {
     display: flex;
     justify-content: flex-end;
@@ -278,6 +276,70 @@
     background: var(--secondary);
     color: white;
     border-color: var(--secondary);
+  }
+  
+  /* New styles for notification system */
+  .new-badge {
+    background: var(--danger);
+    color: white;
+    border-radius: 12px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    margin-left: 10px;
+    animation: pulse 2s infinite;
+  }
+  
+  .new-podcast {
+    border-left: 4px solid var(--primary);
+    animation: highlight 3s ease-out;
+  }
+  
+  .view-count {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-left: 10px;
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  
+  @keyframes highlight {
+    from { background-color: rgba(76, 175, 80, 0.2); }
+    to { background-color: transparent; }
+  }
+  
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+  }
+  
+  .global-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: var(--primary);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    animation: slideIn 0.5s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .global-notification i {
+    font-size: 1.2rem;
   }
   
   /* Responsive design */
@@ -326,6 +388,12 @@
     
     .sort-btn {
       margin: 5px;
+    }
+    
+    .global-notification {
+      left: 20px;
+      right: 20px;
+      top: 10px;
     }
   }
   
@@ -384,7 +452,7 @@
 </head>
 <body>
   <div class="container">
-    <h1><i class="fas fa-podcast"></i> NGHE ĐỊNH HƯỚNG VIỆC THÁNG- TUẦN </h1>
+    <h1><i class="fas fa-podcast"></i> ALBUM CÁC BÀI CA - MR TRIẾT PHÁT TRIỂN</h1>
     
     <div class="input-group">
       <label for="audioName"><i class="fas fa-heading"></i> Tên podcast:</label>
@@ -415,17 +483,15 @@
   </div>
 
   <script>
- const firebaseConfig = {
-  apiKey: "AIzaSyAjjM2_Srq7T5CMDMiyI9J6YyblHEeYiu0",
-  authDomain: "langnghe-7dd12.firebaseapp.com",
-  databaseURL: "https://langnghe-7dd12-default-rtdb.firebaseio.com",
-  projectId: "langnghe-7dd12",
-  storageBucket: "langnghe-7dd12.firebasestorage.app",
-  messagingSenderId: "732161162603",
-  appId: "1:732161162603:web:b825477da872138238202e",
-  measurementId: "G-PWYX36L3S8"
+    const firebaseConfig = {
+  apiKey: "AIzaSyB7RzRxd37ETaIre2urxXuF3jxIU7WqWOo",
+  authDomain: "music-69b35.firebaseapp.com",
+  projectId: "music-69b35",
+  storageBucket: "music-69b35.firebasestorage.app",
+  messagingSenderId: "1005260761556",
+  appId: "1:1005260761556:web:79833314bf99b1680c4e41",
+  measurementId: "G-0G3JHP89DZ"
 };
-
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
@@ -435,6 +501,24 @@
     const DEFAULT_IMAGE = "https://cdn.imgpile.com/f/2J2V5Fw_xl.jpg";
     let currentSortMethod = 'default';
     let allPodcasts = [];
+    let newestPodcastKey = null;
+    let userUID = generateUID();
+    let currentlyPlaying = null;
+    const NEW_PODCAST_DURATION = 48 * 60 * 60 * 1000; // Đã thay đổi từ 24h thành 36h
+
+    // Biến theo dõi lượt nghe
+    let playStartTime = null;
+    let hasCountedView = false;
+    let viewCountInterval = null;
+
+    // Tạo UID ngẫu nhiên cho người dùng
+    function generateUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
 
     // Thêm audio mới
     function uploadAudio() {
@@ -456,7 +540,21 @@
       if (!image) image = DEFAULT_IMAGE;
       
       const newAudioRef = db.ref('audios').push();
-      newAudioRef.set({ name, link, image });
+      const newKey = newAudioRef.key;
+      const createdAt = firebase.database.ServerValue.TIMESTAMP;
+      
+      // Tạo dữ liệu view count mới
+      db.ref('viewCounts/' + newKey).set({
+        count: 0,
+        viewers: {}
+      });
+      
+      newAudioRef.set({ 
+        name, 
+        link, 
+        image,
+        createdAt
+      });
       
       // Clear inputs
       document.getElementById("audioName").value = "";
@@ -466,9 +564,13 @@
       // Thêm key mới vào audioOrder (đưa lên đầu)
       db.ref('audioOrder').once('value', snap => {
         let order = snap.val() || [];
-        order.unshift(newAudioRef.key);
+        order.unshift(newKey);
         db.ref('audioOrder').set(order);
       });
+      
+      // Lưu key podcast mới nhất và hiển thị thông báo
+      newestPodcastKey = newKey;
+      showGlobalNotification(name);
     }
 
     // Xóa audio có password
@@ -478,6 +580,7 @@
       if (pass === "minhtriet1973") {
         if (!confirm("Bạn chắc chắn muốn xóa podcast này?")) return;
         db.ref('audios/' + key).remove();
+        db.ref('viewCounts/' + key).remove();
         // Xóa khỏi audioOrder luôn
         db.ref('audioOrder').once('value', snap => {
           let order = snap.val() || [];
@@ -596,6 +699,78 @@
       });
     }
 
+    // Hiển thị thông báo toàn trang
+    function showGlobalNotification(podcastName = null) {
+      const notification = document.createElement('div');
+      notification.className = 'global-notification';
+      
+      if (podcastName) {
+        notification.innerHTML = `
+          <i class="fas fa-bell"></i>
+          <span>Đã thêm podcast mới: <strong>${podcastName}</strong></span>
+        `;
+      } else {
+        notification.innerHTML = `
+          <i class="fas fa-bell"></i>
+          <span>Có podcast mới được cập nhật!</span>
+        `;
+      }
+      
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOut 0.5s ease-in';
+        setTimeout(() => notification.remove(), 500);
+      }, 5000);
+    }
+
+    // Cập nhật lượt xem khi người dùng nghe đủ 5 giây trở lên
+    function updateViewCount(key) {
+      if (hasCountedView) return;
+      
+      const currentTime = Date.now();
+      const playDuration = (currentTime - playStartTime) / 1000; // Thời gian nghe tính bằng giây
+      
+      if (playDuration >= 5) {
+        db.ref('viewCounts/' + key).transaction((currentData) => {
+          if (currentData) {
+            if (!currentData.viewers) {
+              currentData.viewers = {};
+            }
+            
+            // Chỉ tăng nếu chưa xem trong phiên này
+            if (!currentData.viewers[userUID]) {
+              currentData.count = (currentData.count || 0) + 1;
+            }
+            
+            currentData.viewers[userUID] = (currentData.viewers[userUID] || 0) + 1;
+          } else {
+            currentData = {
+              count: 1,
+              viewers: {}
+            };
+            currentData.viewers[userUID] = 1;
+          }
+          return currentData;
+        });
+        
+        hasCountedView = true;
+        clearInterval(viewCountInterval);
+      }
+    }
+
+  function isPodcastNew(podcast) {
+  if (!podcast.createdAt) return false;
+  
+  const now = Date.now();
+  const createdTime = podcast.createdAt;
+  const ageInHours = (now - createdTime) / (1000 * 60 * 60);
+  
+  console.log(`Podcast "${podcast.name}": ${ageInHours.toFixed(2)} hours old`);
+  
+  return ageInHours < 36; // 36 giờ
+}
+
     // Render danh sách podcast
     function renderPodcastList(podcasts) {
       const listDiv = document.getElementById("audioList");
@@ -614,42 +789,99 @@
       const ul = document.createElement("div");
       ul.id = "sortable-list";
       
-      podcasts.forEach(podcast => {
-        const item = document.createElement("div");
-        item.className = "audio-item";
-        item.setAttribute("data-key", podcast.key);
+      // Lấy dữ liệu view count
+      db.ref('viewCounts').once('value').then(snapshot => {
+        const viewCounts = snapshot.val() || {};
         
-        item.innerHTML = `
-          <div class="audio-header">
-            <img src="${podcast.image || DEFAULT_IMAGE}" alt="${podcast.name}" class="audio-image">
-            <div class="audio-name">${podcast.name}</div>
-            <input type="text" class="audio-name-input" placeholder="Nhập tên mới...">
-          </div>
-          <div class="audio-content">
-            ${createWaveform()}
-            <iframe class="audio-player" width="100%" height="60" src="${podcast.link}" frameborder="0" allow="autoplay"></iframe>
-          </div>
-          <div class="audio-actions">
-            <button class="edit" onclick="editAudio('${podcast.key}')"><i class="fas fa-edit"></i> Chỉnh sửa</button>
-            <button class="save" onclick="saveAudio('${podcast.key}')"><i class="fas fa-save"></i> Lưu</button>
-            <button class="delete" onclick="deleteAudio('${podcast.key}')"><i class="fas fa-trash"></i> Xóa</button>
-          </div>
-        `;
+        podcasts.forEach(podcast => {
+          const viewCountData = viewCounts[podcast.key] || {};
+          const viewCount = viewCountData.count || 0;
+          const isNew = isPodcastNew(podcast);
+          
+          const item = document.createElement("div");
+          item.className = `audio-item ${isNew ? 'new-podcast' : ''}`;
+          item.setAttribute("data-key", podcast.key);
+          
+          item.innerHTML = `
+            <div class="audio-header">
+              <img src="${podcast.image || DEFAULT_IMAGE}" alt="${podcast.name}" class="audio-image">
+              <div class="audio-name">
+                ${podcast.name} 
+                ${isNew ? '<span class="new-badge">MỚI</span>' : ''}
+                <span class="view-count">(${viewCount} lượt nghe)</span>
+              </div>
+              <input type="text" class="audio-name-input" placeholder="Nhập tên mới...">
+            </div>
+            <div class="audio-content">
+              ${createWaveform()}
+              <iframe class="audio-player" width="100%" height="60" src="${podcast.link}" frameborder="0" allow="autoplay"></iframe>
+            </div>
+            <div class="audio-actions">
+              <button class="edit" onclick="editAudio('${podcast.key}')"><i class="fas fa-edit"></i> Chỉnh sửa</button>
+              <button class="save" onclick="saveAudio('${podcast.key}')"><i class="fas fa-save"></i> Lưu</button>
+              <button class="delete" onclick="deleteAudio('${podcast.key}')"><i class="fas fa-trash"></i> Xóa</button>
+            </div>
+          `;
+          
+          // Xử lý sự kiện phát audio
+          const iframe = item.querySelector('iframe');
+          if (iframe) {
+            iframe.addEventListener('load', function() {
+              const wave = item.querySelector('.wave-container');
+              const audioWindow = iframe.contentWindow;
+              let checkPlayingInterval = null;
+              
+              // Theo dõi trạng thái phát
+              checkPlayingInterval = setInterval(() => {
+                try {
+                  const audio = audioWindow.document.querySelector('audio');
+                  if (audio && !audio.paused) {
+                    currentlyPlaying = podcast.key;
+                    wave.style.display = 'flex';
+                    
+                    // Bắt đầu tính thời gian khi bắt đầu phát
+                    if (!playStartTime) {
+                      playStartTime = Date.now();
+                      hasCountedView = false;
+                      
+                      // Bắt đầu kiểm tra thời gian nghe
+                      viewCountInterval = setInterval(() => {
+                        updateViewCount(podcast.key);
+                      }, 1000);
+                    }
+                  } else {
+                    if (currentlyPlaying === podcast.key) {
+                      currentlyPlaying = null;
+                      playStartTime = null;
+                      hasCountedView = false;
+                      clearInterval(viewCountInterval);
+                    }
+                    wave.style.display = 'none';
+                  }
+                } catch (e) {
+                  clearInterval(checkPlayingInterval);
+                }
+              }, 1000);
+              
+              iframe.addEventListener('unload', () => {
+                clearInterval(checkPlayingInterval);
+                clearInterval(viewCountInterval);
+              });
+            });
+          }
+          
+          ul.appendChild(item);
+        });
         
-        ul.appendChild(item);
+        listDiv.appendChild(ul);
+        
+        if (currentSortMethod === 'default') {
+          enableSorting();
+        }
       });
-      
-      listDiv.appendChild(ul);
-      
-      // Kích hoạt kéo thả nếu là sắp xếp mặc định
-      if (currentSortMethod === 'default') {
-        enableSorting();
-      }
-      
-      setupAudioPlayers();
     }
 
-    // Hiển thị danh sách audio có thứ tự kéo thả
+    // Hiển thị danh sách audio
     function showAudioList() {
       db.ref('audios').on('value', (snapshot) => {
         const listDiv = document.getElementById("audioList");
@@ -671,59 +903,43 @@
           let entries = Object.entries(data);
           
           if (order && Array.isArray(order)) {
-            // Sắp xếp entries theo order
             entries = order.map(key => [key, data[key]]).filter(item => item[1]);
-            // Thêm audio mới chưa có trong order
             entries = entries.concat(Object.entries(data).filter(([k]) => !order.includes(k)));
           }
           
-          // Lưu tất cả podcast vào biến toàn cục
+          // Sắp xếp theo thời gian tạo (mới nhất đầu tiên)
+          entries.sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+          
+          // Lưu podcast mới nhất
+          if (entries.length > 0) {
+            newestPodcastKey = entries[0][0];
+          }
+          
           allPodcasts = entries.map(([key, audio]) => ({
             key,
             name: audio.name,
             link: audio.link,
-            image: audio.image
+            image: audio.image,
+            createdAt: audio.createdAt
           }));
           
-          // Render danh sách
+          // Kiểm tra có podcast mới không (trong 36h)
+          const now = Date.now();
+          const hasNewPodcast = allPodcasts.some(podcast => {
+            const createdTime = podcast.createdAt || 0;
+            return (now - createdTime) < NEW_PODCAST_DURATION;
+          });
+          
+          if (hasNewPodcast) {
+            showGlobalNotification();
+          }
+          
           renderPodcastList(allPodcasts);
         });
       });
     }
 
-    // Thiết lập player audio và sóng âm
-    function setupAudioPlayers() {
-      const iframes = document.querySelectorAll('iframe.audio-player');
-      
-      iframes.forEach(iframe => {
-        // Thêm sự kiện load cho iframe
-        iframe.addEventListener('load', function() {
-          const wave = iframe.closest('.audio-content').querySelector('.wave-container');
-          const audioWindow = iframe.contentWindow;
-          
-          // Kiểm tra trạng thái phát mỗi 100ms
-          const checkPlaying = setInterval(() => {
-            try {
-              // Kiểm tra xem audio có đang phát không
-              const audio = audioWindow.document.querySelector('audio');
-              if (audio && !audio.paused) {
-                wave.style.display = 'flex';
-              } else {
-                wave.style.display = 'none';
-              }
-            } catch (e) {
-              // Nếu có lỗi (do cross-origin), dừng kiểm tra
-              clearInterval(checkPlaying);
-            }
-          }, 100);
-          
-          // Dọn dẹp khi iframe bị xóa
-          iframe.addEventListener('unload', () => clearInterval(checkPlaying));
-        });
-      });
-    }
-
-    // Tải danh sách audio khi trang load
+    // Khởi động ứng dụng
     showAudioList();
     updateSortButtons();
   </script>
